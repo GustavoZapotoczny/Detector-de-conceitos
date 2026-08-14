@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detector de conceitos — protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fundo:#0F1620;
+  --superficie:#17202B;
+  --superficie-alta:#1E2A38;
+  --linha:#2C3B4C;
+  --texto:#E6EDF3;
+  --texto-fraco:#8FA3B8;
+  --alerta:#F2B13C;
+  --neutro:#4CC2A6;
+  --duvida:#E2725B;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --corpo:"Public Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--fundo);
+  color:var(--texto);
+  font-family:var(--corpo);
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+header{
+  padding:20px 22px 16px;
+  border-bottom:1px solid var(--linha);
+  display:flex;flex-wrap:wrap;gap:14px;align-items:baseline;justify-content:space-between;
+}
+h1{
+  font-family:var(--display);
+  font-weight:700;
+  font-size:22px;
+  letter-spacing:-0.02em;
+  margin:0;
+}
+.subtitulo{color:var(--texto-fraco);font-size:13px;margin:2px 0 0}
+.estado{
+  font-family:var(--mono);font-size:12px;
+  display:flex;align-items:center;gap:8px;
+  color:var(--texto-fraco);
+}
+.bolinha{width:9px;height:9px;border-radius:50%;background:var(--linha);flex:none}
+.bolinha.ativa{background:var(--neutro);box-shadow:0 0 0 4px rgba(76,194,166,.15)}
+.bolinha.erro{background:var(--duvida)}
+
+main{
+  display:grid;
+  grid-template-columns:300px 1fr 320px;
+  gap:1px;
+  background:var(--linha);
+  min-height:calc(100vh - 78px);
+}
+section{background:var(--fundo);padding:18px}
+h2{
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--texto-fraco);
+  margin:0 0 12px;
+}
+
+/* --- traçado --- */
+#tracado{
+  width:100%;height:96px;display:block;
+  background:var(--superficie);
+  border:1px solid var(--linha);
+  border-radius:6px;
+}
+.legenda-tracado{
+  font-family:var(--mono);font-size:11px;color:var(--texto-fraco);
+  margin-top:6px;display:flex;gap:16px;flex-wrap:wrap;
+}
+.legenda-tracado span::before{
+  content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;
+}
+.leg-alerta::before{background:var(--alerta)}
+.leg-neutro::before{background:var(--neutro)}
+
+/* --- transcrição --- */
+#transcricao{
+  margin-top:18px;
+  background:var(--superficie);
+  border:1px solid var(--linha);
+  border-radius:6px;
+  padding:14px 16px;
+  min-height:120px;
+  max-height:230px;
+  overflow-y:auto;
+  font-size:16px;
+  line-height:1.65;
+}
+#transcricao .parcial{color:var(--texto-fraco)}
+#transcricao mark{
+  background:rgba(242,177,60,.16);
+  color:var(--alerta);
+  padding:1px 3px;border-radius:3px;font-weight:600;
+}
+#transcricao:empty::before{
+  content:"A transcrição aparece aqui assim que a aula começar.";
+  color:var(--texto-fraco);font-size:14px;
+}
+
+/* --- controles --- */
+.controles{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+button{
+  font-family:var(--corpo);font-size:14px;font-weight:600;
+  border-radius:6px;border:1px solid var(--linha);
+  background:var(--superficie-alta);color:var(--texto);
+  padding:9px 14px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+button:hover{background:#253445}
+button:focus-visible{outline:2px solid var(--neutro);outline-offset:2px}
+button.principal{background:var(--neutro);color:#08130F;border-color:var(--neutro)}
+button.principal:hover{background:#63d4b9}
+button.parar{background:var(--duvida);color:#160603;border-color:var(--duvida)}
+button.discreto{background:transparent;font-weight:500;color:var(--texto-fraco)}
+button.discreto:hover{color:var(--texto);background:var(--superficie)}
+
+/* --- alertas --- */
+.form-alerta{display:flex;gap:6px;margin-bottom:12px}
+input[type=text],textarea{
+  font-family:var(--corpo);font-size:14px;
+  background:var(--superficie);border:1px solid var(--linha);
+  color:var(--texto);border-radius:6px;padding:9px 10px;width:100%;
+}
+input:focus,textarea:focus{outline:none;border-color:var(--neutro)}
+ul{list-style:none;margin:0;padding:0}
+.alerta-item{
+  background:var(--superficie);
+  border:1px solid var(--linha);
+  border-left:3px solid var(--alerta);
+  border-radius:6px;padding:10px 12px;margin-bottom:8px;
+}
+.alerta-topo{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.alerta-nome{font-weight:600}
+.alerta-meta{font-family:var(--mono);font-size:11px;color:var(--texto-fraco);margin-top:3px}
+.alerta-item textarea{margin-top:8px;font-size:13px;min-height:52px;resize:vertical}
+.remover{
+  background:none;border:none;color:var(--texto-fraco);
+  font-size:18px;line-height:1;padding:0 4px;cursor:pointer;
+}
+.remover:hover{color:var(--duvida)}
+.vazio{color:var(--texto-fraco);font-size:13px;font-style:italic}
+
+/* --- log --- */
+#log{
+  font-family:var(--mono);font-size:12px;line-height:1.7;
+  background:var(--superficie);border:1px solid var(--linha);border-radius:6px;
+  padding:12px;height:calc(100vh - 260px);min-height:220px;overflow-y:auto;
+}
+#log div{white-space:pre-wrap;word-break:break-word}
+.log-alerta{color:var(--alerta)}
+.log-ok{color:var(--neutro)}
+.log-erro{color:var(--duvida)}
+.log-fraco{color:var(--texto-fraco)}
+
+/* --- card de alerta --- */
+#pilha-cards{position:fixed;right:20px;bottom:20px;width:330px;max-width:calc(100vw - 40px);z-index:50}
+.card{
+  background:var(--superficie-alta);
+  border:1px solid var(--alerta);
+  border-radius:10px;
+  padding:16px;margin-top:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.5);
+  animation:entra .28s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes entra{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.card{animation:none}}
+.card-titulo{
+  font-family:var(--display);font-size:19px;font-weight:700;
+  color:var(--alerta);letter-spacing:-.01em;margin-bottom:8px;
+}
+.card-contexto{
+  font-size:13px;color:var(--texto-fraco);
+  border-left:2px solid var(--linha);padding-left:10px;margin-bottom:12px;
+}
+.card-nota{
+  font-size:14px;background:var(--superficie);border-radius:6px;
+  padding:10px;margin-bottom:12px;white-space:pre-wrap;
+}
+.card-acoes{display:flex;gap:8px}
+.card-acoes button{flex:1;font-size:13px;padding:8px}
+
+/* --- modal de permissão --- */
+#fundo-modal{
+  position:fixed;inset:0;z-index:80;
+  background:rgba(8,13,19,.78);
+  backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#fundo-modal[hidden]{display:none}
+.modal{
+  background:var(--superficie-alta);
+  border:1px solid var(--linha);
+  border-radius:12px;
+  width:100%;max-width:440px;
+  padding:26px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  animation:entra .24s cubic-bezier(.2,.9,.3,1);
+}
+@media (prefers-reduced-motion:reduce){.modal{animation:none}}
+.modal-icone{
+  width:44px;height:44px;border-radius:10px;
+  background:rgba(76,194,166,.14);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+}
+.modal-icone svg{width:22px;height:22px;stroke:var(--neutro);fill:none;stroke-width:1.8;stroke-linecap:round}
+.modal.bloqueado .modal-icone{background:rgba(226,114,91,.14)}
+.modal.bloqueado .modal-icone svg{stroke:var(--duvida)}
+.modal h3{
+  font-family:var(--display);font-size:21px;font-weight:700;
+  letter-spacing:-.015em;margin:0 0 8px;
+}
+.modal p{font-size:14px;color:var(--texto-fraco);margin:0 0 14px}
+.modal ol{margin:0 0 16px;padding-left:20px;font-size:14px;color:var(--texto-fraco)}
+.modal ol li{margin-bottom:7px}
+.modal code{
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--superficie);border:1px solid var(--linha);
+  border-radius:4px;padding:2px 6px;color:var(--texto);
+  display:inline-block;
+}
+.modal pre{
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--superficie);border:1px solid var(--linha);
+  border-radius:6px;padding:10px 12px;margin:0 0 16px;
+  overflow-x:auto;color:var(--texto);
+}
+.modal-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.modal-acoes button{flex:1;min-width:130px}
+.modal-nota{
+  font-size:12.5px;color:var(--texto-fraco);
+  border-top:1px solid var(--linha);margin-top:16px;padding-top:12px;
+}
+
+/* --- simulação --- */
+#painel-sim{
+  margin-top:16px;background:var(--superficie);border:1px solid var(--linha);
+  border-radius:6px;padding:14px;
+}
+#painel-sim[hidden]{display:none}
+#painel-sim textarea{min-height:90px;font-size:13px;font-family:var(--mono);resize:vertical}
+.dica{font-size:12px;color:var(--texto-fraco);margin:8px 0 0}
+
+.aviso{
+  font-size:12px;color:var(--texto-fraco);
+  border-top:1px solid var(--linha);margin-top:16px;padding-top:12px;
+}
+
+@media (max-width:1040px){
+  main{grid-template-columns:1fr}
+  #log{height:240px}
+  #pilha-cards{position:static;width:auto;padding:0 18px 18px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Detector de conceitos</h1>
+    <p class="subtitulo">Protótipo do MVP — escuta, transcreve, detecta conceito em alerta, registra o evento.</p>
+  </div>
+  <div class="estado"><span class="bolinha" id="bolinha"></span><span id="rotulo-estado">parado</span></div>
+</header>
+
+<main>
+
+  <!-- COLUNA 1 — ALERTAS -->
+  <section>
+    <h2>Meus alertas</h2>
+    <div class="form-alerta">
+      <input type="text" id="novo-alerta" placeholder="ex.: subducção" autocomplete="off">
+      <button id="btn-add" class="principal">+</button>
+    </div>
+    <ul id="lista-alertas"></ul>
+    <p class="vazio" id="alertas-vazio">Nenhum conceito marcado. Adicione os termos que você quer que o sistema avise.</p>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="discreto" id="btn-exemplo">Carregar exemplo</button>
+      <button class="discreto" id="btn-exportar">Exportar sessão</button>
+    </div>
+  </section>
+
+  <!-- COLUNA 2 — AULA -->
+  <section>
+    <h2>Aula</h2>
+    <div class="controles">
+      <button id="btn-iniciar" class="principal">Iniciar aula</button>
+      <button id="btn-encerrar" class="parar" hidden>Encerrar</button>
+      <button id="btn-sim" class="discreto">Testar sem microfone</button>
+    </div>
+
+    <canvas id="tracado" width="900" height="96"></canvas>
+    <div class="legenda-tracado">
+      <span class="leg-neutro">fala captada</span>
+      <span class="leg-alerta">conceito em alerta detectado</span>
+    </div>
+
+    <div id="transcricao"></div>
+
+    <div id="painel-sim" hidden>
+      <h2 style="margin-bottom:8px">Modo simulação</h2>
+      <textarea id="texto-sim">As placas tectônicas apresentam diferentes tipos de limites. Quando duas placas se aproximam, temos um limite convergente. Em determinadas situações, uma placa oceânica pode mergulhar sob outra, num processo chamado subducção. Esse movimento convergente é responsável pela formação de cadeias montanhosas.</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btn-reproduzir" class="principal">Reproduzir como aula</button>
+        <button id="btn-parar-sim" class="discreto">Parar</button>
+      </div>
+      <p class="dica">Cola aqui a transcrição de uma aula real e o sistema roda o mesmo ciclo, sem microfone. Serve para testar a detecção antes de levar o celular para a sala.</p>
+    </div>
+
+    <p class="aviso">Gravar a voz do professor envolve LGPD e direito autoral da aula. Este protótipo não grava nem envia áudio: a transcrição fica só na memória do navegador e some ao fechar a página. Ainda assim, peça permissão ao professor antes de usar em sala.</p>
+  </section>
+
+  <!-- COLUNA 3 — LOG -->
+  <section>
+    <h2>Log de eventos</h2>
+    <div id="log"><div class="log-fraco">[--:--:--] aguardando início da aula</div></div>
+  </section>
+
+</main>
+
+<div id="pilha-cards"></div>
+
+<div id="fundo-modal" hidden>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal-icone">
+      <svg viewBox="0 0 24 24" id="modal-svg">
+        <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/>
+        <path d="M19 11a7 7 0 0 1-14 0"/>
+        <path d="M12 18v3"/>
+      </svg>
+    </div>
+    <h3 id="modal-titulo">Liberar o microfone</h3>
+    <div id="modal-corpo"></div>
+    <div class="modal-acoes" id="modal-acoes"></div>
+    <p class="modal-nota">O áudio é processado no seu aparelho e descartado na hora. Nada é gravado nem enviado para servidor.</p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ESTADO
+   ═══════════════════════════════════════════════════════════ */
+const estado = {
+  alertas: [],            // {id, nome, nota, raizes, vistos, entendidos, ultimoDisparo}
+  ouvindo: false,
+  contexto: "",           // janela recente de transcrição
+  tokensRecentes: [],
+  simTimer: null,
+  audioCtx: null,
+  analyser: null,
+  recog: null,
+  reiniciarProposital: false,
+  eventos: []
+};
+
+const COOLDOWN_MS = 45000;      // não repete o mesmo alerta antes disso
+const JANELA_CONTEXTO = 400;    // caracteres de contexto guardados
+const MAX_NGRAMA = 3;           // alertas com até 3 palavras
+
+/* ═══════════════════════════════════════════════════════════
+   NORMALIZAÇÃO E RAIZ (stemmer leve pt-BR)
+   ═══════════════════════════════════════════════════════════ */
+function normalizar(s){
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9\s-]/g," ")
+    .replace(/\s+/g," ").trim();
+}
+
+const SUFIXOS = ["mente","issimo","issima","idade","amento","imento","adores","ador",
+                 "encia","ancia","entes","antes","ente","ante","icos","icas","ico","ica",
+                 "ismo","ista","ivos","ivas","ivo","iva","coes","cao","oes","ais","eis",
+                 "ns","es","em","s"];
+
+function raiz(palavra){
+  let p = normalizar(palavra);
+  for(const suf of SUFIXOS){
+    if(p.endsWith(suf) && p.length - suf.length >= 4){
+      return p.slice(0, p.length - suf.length);
+    }
+  }
+  return p;
+}
+
+function raizesDe(frase){
+  return normalizar(frase).split(" ").filter(Boolean).map(raiz);
+}
+
+/* distância de Levenshtein — tolera erro de transcrição */
+function levenshtein(a,b){
+  if(a===b) return 0;
+  const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  let ant = Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){
+    const atual=[i];
+    for(let j=1;j<=n;j++){
+      atual[j] = Math.min(
+        ant[j]+1,
+        atual[j-1]+1,
+        ant[j-1] + (a[i-1]===b[j-1]?0:1)
+      );
+    }
+    ant=atual;
+  }
+  return ant[n];
+}
+
+function raizesBatem(a,b){
+  if(a===b) return true;
+  const menor = Math.min(a.length,b.length);
+  if(menor < 4) return false;
+  const tolerancia = menor >= 8 ? 2 : 1;
+  return levenshtein(a,b) <= tolerancia;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DETECÇÃO
+   ═══════════════════════════════════════════════════════════ */
+function detectar(tokens){
+  const achados = [];
+  for(const alerta of estado.alertas){
+    const n = alerta.raizes.length;
+    if(n === 0 || n > MAX_NGRAMA) continue;
+    for(let i = 0; i + n <= tokens.length; i++){
+      let bate = true;
+      for(let k = 0; k < n; k++){
+        if(!raizesBatem(tokens[i+k], alerta.raizes[k])){ bate = false; break; }
+      }
+      if(bate){ achados.push(alerta); break; }
+    }
+  }
+  return achados;
+}
+
+function processarTexto(texto){
+  const novos = normalizar(texto).split(" ").filter(Boolean).map(raiz);
+  if(!novos.length) return;
+
+  estado.tokensRecentes = estado.tokensRecentes.concat(novos).slice(-14);
+  estado.contexto = (estado.contexto + " " + texto).trim().slice(-JANELA_CONTEXTO);
+
+  const achados = detectar(estado.tokensRecentes);
+  const agora = Date.now();
+
+  for(const alerta of achados){
+    alerta.vistos++;
+    if(agora - alerta.ultimoDisparo < COOLDOWN_MS){
+      registrar(`conceito "${alerta.nome}" reapareceu (silenciado por ${Math.ceil((COOLDOWN_MS-(agora-alerta.ultimoDisparo))/1000)}s)`, "log-fraco");
+      continue;
+    }
+    alerta.ultimoDisparo = agora;
+    registrar(`conceito detectado: ${alerta.nome}`, "log-ok");
+    registrar(`encontrado na lista de alertas`, "log-ok");
+    registrar(`ALERTA GERADO`, "log-alerta");
+    marcarTracado();
+    mostrarCard(alerta);
+    estado.eventos.push({
+      hora: new Date().toISOString(),
+      conceito: alerta.nome,
+      contexto: estado.contexto.slice(-160),
+      resposta: null
+    });
+    estado.tokensRecentes = []; // evita re-disparo imediato pela mesma janela
+    renderAlertas();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD
+   ═══════════════════════════════════════════════════════════ */
+function mostrarCard(alerta){
+  const pilha = document.getElementById("pilha-cards");
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const contexto = estado.contexto.slice(-150);
+  const temNota = alerta.nota && alerta.nota.trim();
+
+  card.innerHTML = `
+    <div class="card-titulo">${escapar(alerta.nome)}</div>
+    <div class="card-contexto">“…${escapar(contexto)}”</div>
+    <div class="card-nota" data-oculta="${temNota ? "1" : "0"}">
+      ${temNota ? "Tenta lembrar primeiro. Depois toque para ver sua nota." : "Você não escreveu uma nota para este conceito."}
+    </div>
+    <div class="card-acoes">
+      <button data-acao="entendi">Entendi</button>
+      <button data-acao="duvida">Ainda tenho dúvida</button>
+    </div>`;
+
+  const divNota = card.querySelector(".card-nota");
+  if(temNota){
+    divNota.style.cursor = "pointer";
+    divNota.addEventListener("click", () => {
+      divNota.textContent = alerta.nota;
+      divNota.style.cursor = "default";
+      divNota.dataset.oculta = "0";
+    });
+  }
+
+  card.querySelectorAll("[data-acao]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const acao = btn.dataset.acao;
+      if(acao === "entendi"){
+        alerta.entendidos++;
+        registrar(`resposta: entendi — ${alerta.nome}`, "log-ok");
+      } else {
+        registrar(`resposta: ainda tenho dúvida — ${alerta.nome}`, "log-erro");
+      }
+      const ultimo = estado.eventos.filter(e => e.conceito === alerta.nome).pop();
+      if(ultimo) ultimo.resposta = acao;
+      card.remove();
+      renderAlertas();
+    });
+  });
+
+  pilha.appendChild(card);
+  setTimeout(() => { if(card.isConnected) card.remove(); }, 25000);
+}
+
+function escapar(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOG
+   ═══════════════════════════════════════════════════════════ */
+function hora(){
+  const d = new Date();
+  return d.toTimeString().slice(0,8);
+}
+function registrar(msg, classe="log-fraco"){
+  const log = document.getElementById("log");
+  const linha = document.createElement("div");
+  linha.className = classe;
+  linha.textContent = `[${hora()}] ${msg}`;
+  log.appendChild(linha);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRAÇADO
+   ═══════════════════════════════════════════════════════════ */
+const canvas = document.getElementById("tracado");
+const ctx = canvas.getContext("2d");
+let colunaX = 0;
+let marcas = [];
+let amplitudeAtual = 0;
+
+function limparTracado(){
+  ctx.fillStyle = "#17202B";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle = "#2C3B4C";
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height/2);
+  ctx.lineTo(canvas.width, canvas.height/2);
+  ctx.stroke();
+  colunaX = 0; marcas = [];
+}
+limparTracado();
+
+function marcarTracado(){ marcas.push(colunaX); }
+
+function desenharTracado(){
+  if(!estado.ouvindo){ requestAnimationFrame(desenharTracado); return; }
+
+  if(estado.analyser){
+    const buf = new Uint8Array(estado.analyser.frequencyBinCount);
+    estado.analyser.getByteTimeDomainData(buf);
+    let soma = 0;
+    for(const v of buf) soma += Math.abs(v - 128);
+    amplitudeAtual = Math.min(1, (soma / buf.length) / 40);
+  } else {
+    amplitudeAtual = Math.max(0, amplitudeAtual * 0.92);
+  }
+
+  const meio = canvas.height/2;
+  const alt = amplitudeAtual * (canvas.height/2 - 6);
+
+  ctx.fillStyle = "#17202B";
+  ctx.fillRect(colunaX, 0, 3, canvas.height);
+  ctx.strokeStyle = "#2C3B4C";
+  ctx.beginPath(); ctx.moveTo(colunaX,meio); ctx.lineTo(colunaX+3,meio); ctx.stroke();
+
+  ctx.strokeStyle = "#4CC2A6";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(colunaX, meio - alt);
+  ctx.lineTo(colunaX, meio + alt);
+  ctx.stroke();
+
+  for(const m of marcas){
+    if(Math.abs(m - colunaX) < 2){
+      ctx.strokeStyle = "#F2B13C";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(m, 4); ctx.lineTo(m, canvas.height - 4);
+      ctx.stroke();
+    }
+  }
+
+  colunaX += 2;
+  if(colunaX >= canvas.width){ colunaX = 0; marcas = []; }
+  requestAnimationFrame(desenharTracado);
+}
+requestAnimationFrame(desenharTracado);
+
+/* ═══════════════════════════════════════════════════════════
+   ALERTAS — CRUD
+   ═══════════════════════════════════════════════════════════ */
+function addAlerta(nome, nota=""){
+  const limpo = nome.trim();
+  if(!limpo) return;
+  if(estado.alertas.some(a => normalizar(a.nome) === normalizar(limpo))) return;
+  estado.alertas.push({
+    id: Date.now() + Math.random(),
+    nome: limpo,
+    nota,
+    raizes: raizesDe(limpo),
+    vistos: 0,
+    entendidos: 0,
+    ultimoDisparo: 0
+  });
+  registrar(`alerta adicionado: ${limpo}`, "log-fraco");
+  renderAlertas();
+}
+
+function renderAlertas(){
+  const ul = document.getElementById("lista-alertas");
+  const vazio = document.getElementById("alertas-vazio");
+  ul.innerHTML = "";
+  vazio.hidden = estado.alertas.length > 0;
+
+  for(const a of estado.alertas){
+    const li = document.createElement("li");
+    li.className = "alerta-item";
+    li.innerHTML = `
+      <div class="alerta-topo">
+        <div>
+          <div class="alerta-nome">${escapar(a.nome)}</div>
+          <div class="alerta-meta">detectado ${a.vistos}× · entendido ${a.entendidos}×</div>
+        </div>
+        <button class="remover" title="Remover">×</button>
+      </div>
+      <textarea placeholder="O que você quer lembrar sobre isso? (opcional)"></textarea>`;
+    const ta = li.querySelector("textarea");
+    ta.value = a.nota;
+    ta.addEventListener("input", e => { a.nota = e.target.value; });
+    li.querySelector(".remover").addEventListener("click", () => {
+      estado.alertas = estado.alertas.filter(x => x.id !== a.id);
+      registrar(`alerta removido: ${a.nome}`, "log-fraco");
+      renderAlertas();
+    });
+    ul.appendChild(li);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RECONHECIMENTO DE FALA
+   ═══════════════════════════════════════════════════════════ */
+function setEstado(txt, classe){
+  document.getElementById("rotulo-estado").textContent = txt;
+  const b = document.getElementById("bolinha");
+  b.className = "bolinha" + (classe ? " " + classe : "");
+}
+
+async function iniciarAula(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    registrar("este navegador não tem reconhecimento de fala — use Chrome ou Edge, ou o modo simulação", "log-erro");
+    setEstado("sem suporte","erro");
+    document.getElementById("painel-sim").hidden = false;
+    return;
+  }
+
+  // microfone para o traçado (opcional — se falhar, o resto continua)
+  try{
+    const stream = estado.stream || await navigator.mediaDevices.getUserMedia({audio:true});
+    estado.stream = stream;
+    estado.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = estado.audioCtx.createMediaStreamSource(stream);
+    estado.analyser = estado.audioCtx.createAnalyser();
+    estado.analyser.fftSize = 512;
+    src.connect(estado.analyser);
+  }catch(e){
+    estado.analyser = null;
+  }
+
+  const recog = new SR();
+  recog.lang = "pt-BR";
+  recog.continuous = true;
+  recog.interimResults = true;
+  estado.recog = recog;
+
+  recog.onstart = () => {
+    estado.ouvindo = true;
+    setEstado("ouvindo","ativa");
+    registrar("aula iniciada", "log-ok");
+    document.getElementById("btn-iniciar").hidden = true;
+    document.getElementById("btn-encerrar").hidden = false;
+  };
+
+  recog.onresult = ev => {
+    let parcial = "";
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      const texto = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal){
+        registrar("transcrição processada", "log-fraco");
+        acrescentarTranscricao(texto, false);
+        processarTexto(texto);
+      } else {
+        parcial += texto;
+      }
+    }
+    mostrarParcial(parcial);
+  };
+
+  recog.onerror = ev => {
+    if(ev.error === "no-speech") return;
+    registrar(`erro de reconhecimento: ${ev.error}`, "log-erro");
+    if(ev.error === "not-allowed"){
+      setEstado("microfone bloqueado","erro");
+      estado.ouvindo = false;
+    }
+  };
+
+  // o navegador encerra sozinho depois de ~1 min de silêncio: reinicia
+  recog.onend = () => {
+    if(estado.ouvindo){
+      try{ recog.start(); }
+      catch(e){ setTimeout(()=>{ try{recog.start()}catch(_){} }, 400); }
+    } else {
+      setEstado("parado","");
+    }
+  };
+
+  try{ recog.start(); }
+  catch(e){ registrar("não foi possível iniciar o microfone", "log-erro"); }
+}
+
+function encerrarAula(){
+  estado.ouvindo = false;
+  if(estado.recog){ try{ estado.recog.stop(); }catch(e){} }
+  if(estado.audioCtx){ try{ estado.audioCtx.close(); }catch(e){} estado.audioCtx=null; estado.analyser=null; }
+  pararSimulacao();
+  setEstado("parado","");
+  registrar("aula encerrada", "log-fraco");
+  document.getElementById("btn-iniciar").hidden = false;
+  document.getElementById("btn-encerrar").hidden = true;
+}
+
+/* transcrição na tela */
+const divTrans = document.getElementById("transcricao");
+let spanParcial = null;
+
+function acrescentarTranscricao(texto){
+  if(spanParcial){ spanParcial.remove(); spanParcial = null; }
+  const span = document.createElement("span");
+  span.textContent = texto + " ";
+  divTrans.appendChild(span);
+  divTrans.scrollTop = divTrans.scrollHeight;
+  if(divTrans.childNodes.length > 90) divTrans.removeChild(divTrans.firstChild);
+}
+
+function mostrarParcial(texto){
+  if(!texto){ if(spanParcial){spanParcial.remove(); spanParcial=null;} return; }
+  if(!spanParcial){
+    spanParcial = document.createElement("span");
+    spanParcial.className = "parcial";
+    divTrans.appendChild(spanParcial);
+  }
+  spanParcial.textContent = texto;
+  divTrans.scrollTop = divTrans.scrollHeight;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SIMULAÇÃO
+   ═══════════════════════════════════════════════════════════ */
+function reproduzirSimulacao(){
+  pararSimulacao();
+  const palavras = document.getElementById("texto-sim").value.split(/\s+/).filter(Boolean);
+  if(!palavras.length) return;
+
+  estado.ouvindo = true;
+  setEstado("simulando","ativa");
+  registrar("aula iniciada (simulação)", "log-ok");
+  document.getElementById("btn-iniciar").hidden = true;
+  document.getElementById("btn-encerrar").hidden = false;
+
+  let i = 0, bloco = [];
+  estado.simTimer = setInterval(() => {
+    if(i >= palavras.length){
+      if(bloco.length){ const t = bloco.join(" "); acrescentarTranscricao(t); processarTexto(t); }
+      registrar("fim da transcrição simulada", "log-fraco");
+      pararSimulacao();
+      setEstado("parado","");
+      document.getElementById("btn-iniciar").hidden = false;
+      document.getElementById("btn-encerrar").hidden = true;
+      return;
+    }
+    bloco.push(palavras[i]);
+    amplitudeAtual = 0.35 + Math.random()*0.5;
+    i++;
+    if(bloco.length >= 6){
+      const t = bloco.join(" ");
+      registrar("transcrição processada", "log-fraco");
+      acrescentarTranscricao(t);
+      processarTexto(t);
+      bloco = [];
+    }
+  }, 320);
+}
+
+function pararSimulacao(){
+  if(estado.simTimer){ clearInterval(estado.simTimer); estado.simTimer = null; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORTAR
+   ═══════════════════════════════════════════════════════════ */
+function exportarSessao(){
+  const dados = {
+    exportado_em: new Date().toISOString(),
+    alertas: estado.alertas.map(a => ({
+      conceito: a.nome,
+      nota: a.nota,
+      detectado: a.vistos,
+      entendido: a.entendidos
+    })),
+    eventos: estado.eventos
+  };
+  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "sessao-" + new Date().toISOString().slice(0,19).replace(/[:T]/g,"-") + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  registrar("sessão exportada", "log-ok");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LIGAÇÕES
+   ═══════════════════════════════════════════════════════════ */
+document.getElementById("btn-add").addEventListener("click", () => {
+  const inp = document.getElementById("novo-alerta");
+  addAlerta(inp.value); inp.value = ""; inp.focus();
+});
+document.getElementById("novo-alerta").addEventListener("keydown", e => {
+  if(e.key === "Enter"){ addAlerta(e.target.value); e.target.value = ""; }
+});
+/* ═══════════════════════════════════════════════════════════
+   PERMISSÃO DO MICROFONE
+   ═══════════════════════════════════════════════════════════ */
+const fundoModal = document.getElementById("fundo-modal");
+const modal      = document.getElementById("modal");
+const modalTit   = document.getElementById("modal-titulo");
+const modalCorpo = document.getElementById("modal-corpo");
+const modalAcoes = document.getElementById("modal-acoes");
+
+function fecharModal(){
+  fundoModal.hidden = true;
+  modal.classList.remove("bloqueado");
+}
+
+function renderModal({titulo, corpo, acoes, bloqueado}){
+  modalTit.textContent = titulo;
+  modalCorpo.innerHTML = corpo;
+  modalAcoes.innerHTML = "";
+  modal.classList.toggle("bloqueado", !!bloqueado);
+  for(const a of acoes){
+    const b = document.createElement("button");
+    b.textContent = a.rotulo;
+    if(a.tipo) b.className = a.tipo;
+    b.addEventListener("click", a.acao);
+    modalAcoes.appendChild(b);
+  }
+  fundoModal.hidden = false;
+  modalAcoes.querySelector("button")?.focus();
+}
+
+function irParaSimulacao(){
+  fecharModal();
+  document.getElementById("painel-sim").hidden = false;
+  document.getElementById("painel-sim").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+async function permissaoAtual(){
+  if(!navigator.permissions?.query) return "desconhecido";
+  try{
+    const st = await navigator.permissions.query({name:"microphone"});
+    return st.state;                     // granted | denied | prompt
+  }catch(e){ return "desconhecido"; }
+}
+
+/* origem insegura: file:// não recebe microfone nenhum */
+function telaOrigemInsegura(){
+  renderModal({
+    bloqueado:true,
+    titulo:"Abra a página por localhost",
+    corpo:`<p>O arquivo está aberto direto do disco (<code>file://</code>) e o navegador não libera microfone nesse modo. Rode um servidor local na pasta do arquivo:</p>
+      <pre>python3 -m http.server 8000</pre>
+      <p>Depois abra <code>http://localhost:8000/detector-de-conceitos.html</code>.</p>`,
+    acoes:[
+      {rotulo:"Testar sem microfone", tipo:"principal", acao:irParaSimulacao},
+      {rotulo:"Fechar", tipo:"discreto", acao:fecharModal}
+    ]
+  });
+}
+
+/* permissão negada: instruções por navegador */
+function telaBloqueada(){
+  const ua = navigator.userAgent;
+  let passos;
+  if(/Android/i.test(ua)){
+    passos = `<ol>
+      <li>Toque no ícone à esquerda do endereço.</li>
+      <li>Toque em <strong>Permissões</strong> → <strong>Microfone</strong>.</li>
+      <li>Marque <strong>Permitir</strong> e recarregue a página.</li>
+    </ol>`;
+  } else if(/iPhone|iPad|Safari/i.test(ua) && !/Chrome/i.test(ua)){
+    passos = `<ol>
+      <li>Abra <strong>Ajustes</strong> → <strong>Safari</strong> → <strong>Microfone</strong>.</li>
+      <li>Marque <strong>Perguntar</strong> ou <strong>Permitir</strong>.</li>
+      <li>Volte e recarregue a página.</li>
+    </ol>`;
+  } else {
+    passos = `<ol>
+      <li>Clique no ícone de cadeado ou de controles à esquerda do endereço.</li>
+      <li>Abra <strong>Microfone</strong> e escolha <strong>Permitir</strong>.</li>
+      <li>Recarregue a página.</li>
+    </ol>`;
+  }
+  renderModal({
+    bloqueado:true,
+    titulo:"Microfone bloqueado",
+    corpo:`<p>O navegador guardou uma recusa anterior para este site, então ele não pergunta de novo. Para reverter:</p>${passos}`,
+    acoes:[
+      {rotulo:"Verificar de novo", tipo:"principal", acao:abrirFluxoMicrofone},
+      {rotulo:"Testar sem microfone", tipo:"discreto", acao:irParaSimulacao}
+    ]
+  });
+}
+
+/* pedido em si */
+async function solicitarMicrofone(){
+  renderModal({
+    titulo:"Aguardando sua resposta",
+    corpo:`<p>O navegador vai mostrar o pedido de permissão no topo da tela. Escolha <strong>Permitir</strong>.</p>`,
+    acoes:[{rotulo:"Cancelar", tipo:"discreto", acao:fecharModal}]
+  });
+  try{
+    estado.stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    registrar("microfone liberado", "log-ok");
+    fecharModal();
+    iniciarAula();
+  }catch(e){
+    if(e.name === "NotAllowedError" || e.name === "SecurityError"){
+      registrar("permissão de microfone negada", "log-erro");
+      telaBloqueada();
+    } else if(e.name === "NotFoundError"){
+      renderModal({
+        bloqueado:true,
+        titulo:"Nenhum microfone encontrado",
+        corpo:`<p>O sistema não achou nenhum microfone conectado. Confira o aparelho e tente de novo.</p>`,
+        acoes:[
+          {rotulo:"Tentar de novo", tipo:"principal", acao:abrirFluxoMicrofone},
+          {rotulo:"Testar sem microfone", tipo:"discreto", acao:irParaSimulacao}
+        ]
+      });
+    } else {
+      registrar(`falha ao acessar o microfone: ${e.name}`, "log-erro");
+      telaBloqueada();
+    }
+  }
+}
+
+/* dentro de iframe: o container é que bloqueia, não o aparelho */
+function telaDentroDeIframe(){
+  renderModal({
+    bloqueado:true,
+    titulo:"Abra fora da pré-visualização",
+    corpo:`<p>A página está rodando dentro de uma janela de pré-visualização, que não repassa o microfone para o conteúdo. Isso não é bloqueio do seu aparelho.</p>
+      <p>Baixe o arquivo e abra num navegador de verdade — por <code>https://</code> ou <code>localhost</code>. Aí o pedido de permissão aparece normalmente.</p>`,
+    acoes:[
+      {rotulo:"Testar sem microfone", tipo:"principal", acao:irParaSimulacao},
+      {rotulo:"Fechar", tipo:"discreto", acao:fecharModal}
+    ]
+  });
+}
+
+/* ponto de entrada do botão Iniciar aula */
+async function abrirFluxoMicrofone(){
+  let dentroDeIframe = false;
+  try{ dentroDeIframe = window.self !== window.top; }catch(e){ dentroDeIframe = true; }
+  if(dentroDeIframe){ telaDentroDeIframe(); return; }
+
+  if(!window.isSecureContext){ telaOrigemInsegura(); return; }
+  if(!navigator.mediaDevices?.getUserMedia){
+    renderModal({
+      bloqueado:true,
+      titulo:"Navegador sem suporte",
+      corpo:`<p>Este navegador não expõe acesso ao microfone. Use Chrome ou Edge atualizados.</p>`,
+      acoes:[{rotulo:"Testar sem microfone", tipo:"principal", acao:irParaSimulacao}]
+    });
+    return;
+  }
+
+  const estadoPerm = await permissaoAtual();
+
+  if(estadoPerm === "granted"){
+    fecharModal();
+    iniciarAula();
+    return;
+  }
+  if(estadoPerm === "denied"){
+    telaBloqueada();
+    return;
+  }
+
+  renderModal({
+    titulo:"Liberar o microfone",
+    corpo:`<p>Para acompanhar a aula, o app precisa ouvir o que o professor fala. A transcrição roda no seu aparelho e o áudio é descartado a cada trecho.</p>
+      <p>Deixe o celular virado para o professor — quanto mais perto, menos erro de transcrição.</p>`,
+    acoes:[
+      {rotulo:"Permitir microfone", tipo:"principal", acao:solicitarMicrofone},
+      {rotulo:"Agora não", tipo:"discreto", acao:fecharModal}
+    ]
+  });
+}
+
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && !fundoModal.hidden) fecharModal();
+});
+fundoModal.addEventListener("click", e => {
+  if(e.target === fundoModal) fecharModal();
+});
+
+document.getElementById("btn-iniciar").addEventListener("click", abrirFluxoMicrofone);
+document.getElementById("btn-encerrar").addEventListener("click", encerrarAula);
+document.getElementById("btn-sim").addEventListener("click", () => {
+  const p = document.getElementById("painel-sim");
+  p.hidden = !p.hidden;
+});
+document.getElementById("btn-reproduzir").addEventListener("click", reproduzirSimulacao);
+document.getElementById("btn-parar-sim").addEventListener("click", () => {
+  pararSimulacao(); estado.ouvindo = false; setEstado("parado","");
+  document.getElementById("btn-iniciar").hidden = false;
+  document.getElementById("btn-encerrar").hidden = true;
+});
+document.getElementById("btn-exportar").addEventListener("click", exportarSessao);
+document.getElementById("btn-exemplo").addEventListener("click", () => {
+  addAlerta("subducção", "Uma placa mais densa mergulha por baixo da outra.");
+  addAlerta("convergente", "Duas placas se movimentando uma em direção à outra.");
+  addAlerta("placa oceânica");
+  document.getElementById("painel-sim").hidden = false;
+});
+
+renderAlertas();
+</script>
+</body>
+</html>
